@@ -1,0 +1,110 @@
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadStatus = document.getElementById('uploadStatus');
+const questionInput = document.getElementById('questionInput');
+const sendBtn = document.getElementById('sendBtn');
+const chatMessages = document.getElementById('chatMessages');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+const apiStatus = document.getElementById('apiStatus');
+
+saveApiKeyBtn.addEventListener('click', async () => {
+    const apiKey = apiKeyInput.value.trim();
+    if (!apiKey) {
+        apiStatus.textContent = 'Please enter an API key';
+        apiStatus.style.color = '#e74c3c';
+        return;
+    }
+
+    try {
+        const response = await fetch('/set-api-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey })
+        });
+
+        if (response.ok) {
+            apiStatus.textContent = 'API key saved successfully.';
+            apiStatus.style.color = '#27ae60';
+        } else {
+            const error = await response.json();
+            apiStatus.textContent = error.detail || 'Failed to save API key';
+            apiStatus.style.color = '#e74c3c';
+        }
+    } catch (err) {
+        apiStatus.textContent = 'Error: ' + err.message;
+        apiStatus.style.color = '#e74c3c';
+    }
+});
+
+uploadBtn.addEventListener('click', async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+        uploadStatus.textContent = 'Please select a file first';
+        uploadStatus.style.color = '#e74c3c';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            uploadStatus.textContent = `File '${file.name}' uploaded successfully!`;
+            uploadStatus.style.color = '#27ae60';
+        } else {
+            const error = await response.json();
+            uploadStatus.textContent = error.detail || 'Upload failed';
+            uploadStatus.style.color = '#e74c3c';
+        }
+    } catch (err) {
+        uploadStatus.textContent = 'Upload failed: ' + err.message;
+        uploadStatus.style.color = '#e74c3c';
+    }
+});
+
+sendBtn.addEventListener('click', sendMessage);
+questionInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+async function sendMessage() {
+    const question = questionInput.value.trim();
+    if (!question) return;
+
+    addMessage('user', question);
+    questionInput.value = '';
+
+    try {
+        const response = await fetch('/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+        addMessage('assistant', data.answer);
+    } catch (err) {
+        addMessage('assistant', 'Error: ' + err.message);
+    }
+}
+
+function addMessage(role, content) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}`;
+    
+    if (role === 'assistant') {
+        const formattedContent = content.replace(/\n/g, '<br>');
+        messageDiv.innerHTML = formattedContent;
+    } else {
+        messageDiv.textContent = content;
+    }
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
